@@ -1,0 +1,87 @@
+---
+title: 'Part 2 : Chi-sqaure with lizards tails'
+author: "Lauren Skube"
+date: "12/1/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+library(janitor)
+library(broom)
+```
+
+## Read in data 
+
+```{r}
+lizards <- read_csv(here("data" , "lizards.csv"))
+```
+
+Get counts of lizards by species 
+```{r}
+lizards %>% 
+  count(spp) %>% 
+  arrange(-n)
+```
+## Make a subset 
+
+- Only contains UTST lizards 
+- Sites: IBPE (enclosure grassland), RABB (rabbit mesquite), EAST (east tarbush site)
+- Tail condition is recorded (W = whole, B = broken)
+
+```{r}
+utst <- lizards %>% 
+  filter(spp == "UTST") %>% 
+  filter(site %in% c("IBPE", "RABB", "EAST")) %>% 
+  filter(tail %in% c("B" , "W"))
+```
+
+## Find counts and proportions of lizards with broken or whole tails at each site 
+
+```{r}
+utst %>% 
+  count(site, tail)
+```
+
+
+```{r}
+tail_counts <- utst %>% 
+  janitor::tabyl(site, tail)
+
+# create a table that shows counts and proportions by row
+tail_proportions <- tail_counts %>%
+  adorn_percentages() %>%
+  janitor::adorn_pct_formatting(digits = 2) %>%
+  janitor::adorn_ns()
+  
+```
+
+## Convert to a contigency table 
+
+- Use `column_to_rowname()`
+
+```{r}
+lizards_ct <- tail_counts %>% 
+  column_to_rownames(var = "site")
+```
+
+## Chi-square 
+
+- Are tail breakage and site independent? If so, we would expect similar proportions of lizards with broken or whole tails across the three sites 
+
+```{r}
+lizard_x2 <- chisq.test(lizards_ct)
+lizard_x2
+
+lizard_tidy <- broom::tidy(lizard_x2)
+```
+
+There is sufficient evidence to reject the null hypothesis of independence and retail the alternate hypothesis that site and tail breakage are not independent. 
+
+There is a significant association (i.e. non-idependence) between site and lizard tail breakage ($\chi$^2(`r lizard_tidy$parameter`) = `r lizard_tidy$statistic` , *p* = `r lizard_tidy$p.value`)
+
+There is a significant effect of site on tail breakage.
+
+
